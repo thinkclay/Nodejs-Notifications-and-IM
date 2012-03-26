@@ -6,6 +6,7 @@
 var express = require('express')
   , routes = require('./routes')
   , notification = require('./routes/notification')
+  //, index = require('./routes/index')
   , im = require('./routes/im')
   , fs = require('fs');
 
@@ -33,7 +34,7 @@ app.configure('production', function(){
 });
 
 // Routes
-
+//app.get('/', index.index)
 app.get('/im', im.index);
 app.post('/im/send', im.send);
 app.post('/im/read', im.read);

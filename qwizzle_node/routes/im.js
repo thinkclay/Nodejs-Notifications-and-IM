@@ -135,6 +135,11 @@ var userLookup = function(callback){
 			this.data = [];
 			contacts = [];
 			process.nextTick(function(){
+				if (typeof user == 'undefined') 
+				{
+					callback(false);	
+					return false;
+				}
 				if(user.contacts)
 				{ 
 					contacts = user.contacts;
@@ -262,8 +267,7 @@ exports.index = function(req, res){
 };
 
 exports.read = function(req, res){
-    this.thid = req.param('thread-id');
-    //console.log(thid);
+	this.thid = req.param('thread-id');
     if(thid != 'false')
     {
     	process.nextTick(function(){
@@ -299,7 +303,7 @@ exports.read = function(req, res){
 		        } else { res.end('Access denied'); }
 		    });
 		});
-    } else { res.end(); }
+	} else { res.end(); }
 }
 
 

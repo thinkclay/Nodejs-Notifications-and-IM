@@ -75,6 +75,16 @@ var checkAppointments = function(callback){
 	});
 }
 var checkContacts = function(callback){
+	if (typeof user == 'undefined')
+	{
+		callback(false);
+		return false;
+	}
+	if (typeof user.contacts == 'undefined')
+	{
+		callback(false);
+		return false;
+	}
 	contacts = user.contacts;
 	notify['contacts'] = 0;
 	process.nextTick(function() {
@@ -93,6 +103,16 @@ var checkContacts = function(callback){
 }
 
 var checkMessages = function(callback){
+	if (typeof user == 'undefined')
+	{
+		callback(false);
+		return false;	
+	}
+	if (typeof user.mango_threads == 'undefined')
+	{
+		callback(false);
+		return false;
+	}
 	threads = user.mango_threads;
 	threadKeys = [];
 	theMessages = [];
@@ -131,6 +151,10 @@ var checkMessages = function(callback){
 }
 
 var checkTasks = function(callback){
+	if (typeof user == 'undefined')
+		callback(false);
+	if (typeof user.mango_tasks == 'undeinfed')
+		callback(false);
 	tasks = user.mango_tasks
 	notify['tasks'] = 0;
 	process.nextTick(function() {
