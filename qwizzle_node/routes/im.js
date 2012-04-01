@@ -14,16 +14,8 @@ Error: Argument passed in must be a single String of 12 bytes or a string of 24 
  * 
  */
 
-var mongodb = require('mongodb');
 var fs = fs = require('fs');
-var server = new mongodb.Server("127.0.0.1", 27017, {});
-var db = new mongodb.Db('qwizzle', server, {});
-db.open(function(err, db){
-	db.authenticate('chosen', 'Ch0s3nLollip0p!', function(err, result){
-		if (err) throw err;
-	});
-});
-
+ 
 var isEmpty = function(map) {
    var empty = true;
 
@@ -126,8 +118,8 @@ var getMessageHistory = function(callback) {
 }
 
 
-var userLookup = function(callback){
-	db.collection('mango_users', function(error, collection) {
+var userLookup = function(req, callback){
+	req.app.db.collection('mango_users', function(error, collection) {
 		if (error) throw error;
 		collection.find({_id : id}, {limit:1}).toArray(function(error, user) {
 			user = user[0];
@@ -179,7 +171,6 @@ var userLookup = function(callback){
 	});
 }
 
-
 var setSessionFile = function(req, callback){
 	fs.stat('/var/lib/php5/sess_' + req.cookies.session, function(error, stats){
 		if(error) // didn't find the session file
@@ -193,11 +184,10 @@ var setSessionFile = function(req, callback){
 				callback(true);
 			}); 	
 		}
-			
 	});
 }
 
-var setId = function(callback){
+var setId = function(req, callback){
 	fs.readFile(sessFile, function (err, data){
 		txt = String(data);
 		match = txt.match(/\"_id\";C:7:\"MongoId\":24:\{(.*?)\}s\:/);
@@ -211,7 +201,7 @@ var setId = function(callback){
             }
             else
             {
-                this.id = db.bson_serializer.ObjectID( theId );
+                this.id = req.app.db.bson_serializer.ObjectID( theId );
                 process.nextTick(function(){
                     callback(true);
                 }); 
@@ -224,7 +214,7 @@ var setUser = function(req, callback){
 	setSessionFile(req, function(bool){
 		if (bool === true)
 		{
-			setId(function(bool){
+			setId(req, function(bool){
 				if (bool === true)
 				{
 					callback(true);
@@ -236,188 +226,189 @@ var setUser = function(req, callback){
 
 exports.index = function(req, res){
 	// get session cookie
-	setUser(req, function(bool){
-		if(bool === true){
-			process.nextTick(function(){
-				checkOnline(function(bool){
-					if(bool === true){
-						userLookup(function(bool){
-							if (bool === true){
-								getMessageHistory(function(bool){
-									//console.log(user.email + ' just made a request\r\n');
-									title = 'Qwizzle IM System v1.0 (alpha)';
-									var d = {};
-									d.contacts = data;
-									d.user_id = id;
-									d.success = true;
-									json = JSON.stringify(d);
-									res.end(json);
-								});	
-							} else {
-								//console.log(user.email + ' just made a request');
-								json = JSON.stringify({'user_id' : id, 'success' : false})
-								res.end(json);				
-							}
-						});	
-					} else { res.end('Access Denied'); }
-				});
-			});	
-		} else { res.end('Access Denied'); }
+	req.app.setMongoDB(req, function(){
+		setUser(req, function(bool){
+			if(bool === true){
+				process.nextTick(function(){
+					checkOnline(function(bool){
+						if(bool === true){
+							userLookup(req, function(bool){
+								if (bool === true){
+									getMessageHistory(function(bool){
+										//console.log(user.email + ' just made a request\r\n');
+										title = 'Qwizzle IM System v1.0 (alpha)';
+										var d = {};
+										d.contacts = data;
+										d.user_id = id;
+										d.success = true;
+										json = JSON.stringify(d);
+										res.end(json);
+									});	
+								} else {
+									//console.log(user.email + ' just made a request');
+									json = JSON.stringify({'user_id' : id, 'success' : false})
+									res.end(json);				
+								}
+							});	
+						} else { res.end('Access Denied'); }
+					});
+				});	
+			} else { res.end('Access Denied'); }
+		});	
 	});
 };
 
 exports.read = function(req, res){
-	this.thid = req.param('thread-id');
-    if(thid != 'false')
-    {
-    	process.nextTick(function(){
-	    	setUser(req, function(bool){
-		        if(bool === true){
-		            process.nextTick(function(){
-		                checkOnline(function(bool){
-		                    if(bool === true){
-		                        userLookup(function(bool){
-		                            if(bool === true)
-		                            {
-		                                thread = user.im[thid];
-		                                if (typeof thread != 'undefined')
-		                                {
-		                                    process.nextTick(function(){
-		                                        thread['read'] = 1;  
-		                                        process.nextTick(function(){ 
-		                                            user.im[thid] = thread;
-		                                            process.nextTick(function(){
-		                                                db.collection('mango_users', function(error, collection){
-		                                                    collection.update({_id:id}, {$set:{ im : user.im}});
-		                                                    res.end();    
-		                                                });
-		                                            });    
-		                                        });  
-		                                    });    
-		                                }
-		                            } else { res.end('Access denied'); }   
-		                        });
-		                    } else { res.end('Access denied'); }
-		                });
-		            });
-		        } else { res.end('Access denied'); }
-		    });
-		});
-	} else { res.end(); }
+	req.app.setMongoDB(req, function(){
+		this.thid = req.param('thread-id');
+	    if(thid != 'false')
+	    {
+	    	process.nextTick(function(){
+		    	setUser(req, function(bool){
+			        if(bool === true){
+			            process.nextTick(function(){
+			                checkOnline(function(bool){
+			                    if(bool === true){
+			                        userLookup(req, function(bool){
+			                            if(bool === true)
+			                            {
+			                                thread = user.im[thid];
+			                                if (typeof thread != 'undefined')
+			                                {
+			                                    process.nextTick(function(){
+			                                        thread['read'] = 1;  
+			                                        process.nextTick(function(){ 
+			                                            user.im[thid] = thread;
+			                                            process.nextTick(function(){
+			                                                req.app.db.collection('mango_users', function(error, collection){
+			                                                    collection.update({_id:id}, {$set:{ im : user.im}});
+			                                                    res.end();    
+			                                                });
+			                                            });    
+			                                        });  
+			                                    });    
+			                                }
+			                            } else { res.end('Access denied'); }   
+			                        });
+			                    } else { res.end('Access denied'); }
+			                });
+			            });
+			        } else { res.end('Access denied'); }
+			    });
+			});
+		} else { res.end(); }
+	});
 }
 
 
 exports.send = function(req, res){
-	//console.log('client; ' + req.cookies);
-	//console.log(req);
-	setUser(req, function(bool){
-		if (typeof req.param('im-recipient') != 'undefined')
-		{
-			this.rId = db.bson_serializer.ObjectID( req.param('im-recipient', null) );	
-			this.message = req.param('im-message', null);
-			this.reply = req.param('im-thread');
-			//console.log(reply);
-			//console.log(message);
-			ourTime = Math.round(new Date().getTime()/1000);
-			process.nextTick(function(){
-				//console.log(ourTime);
-				db.collection('mango_users', function(error, collection){
-					collection.find({_id:this.id}, {limit:1}).toArray(function (error, sender){
-						sender = sender[0];
-						collection.find({_id:this.rId}, {limit:1}).toArray(function (error, recipient){
-							recipient = recipient[0];
-							if(reply != 'false') 
-							{
-								newMessage = {
-									'sender' 	: String(sender._id),
-									'reciever' 	: String(recipient._id),
-									'userName' 	: sender.username,
-									'message'	: message,
-									'sent' 		: ourTime,
+	req.app.setMongoDB(req, function(){
+		setUser(req, function(bool){
+			if (typeof req.param('im-recipient') != 'undefined')
+			{
+				this.rId = req.app.db.bson_serializer.ObjectID( req.param('im-recipient', null) );	
+				this.message = req.param('im-message', null);
+				this.reply = req.param('im-thread');
+				ourTime = Math.round(new Date().getTime()/1000);
+				process.nextTick(function(){
+					req.app.db.collection('mango_users', function(error, collection){
+						collection.find({_id:this.id}, {limit:1}).toArray(function (error, sender){
+							sender = sender[0];
+							collection.find({_id:this.rId}, {limit:1}).toArray(function (error, recipient){
+								recipient = recipient[0];
+								if(reply != 'false') 
+								{
+									newMessage = {
+										'sender' 	: String(sender._id),
+										'reciever' 	: String(recipient._id),
+										'userName' 	: sender.username,
+										'message'	: message,
+										'sent' 		: ourTime,
+									}
+									senderIms = sender.im;
+									recipientIms = recipient.im;
+									
+								     // update sender thread
+		                            for(var key in senderIms)
+		                            {
+		                                if(key == reply)
+		                                {
+		                                    if (typeof senderIms[key] != 'undefined')
+		                                    {
+		                                        //console.log(senderIms);
+		                                        senderIms[key].messages.push(newMessage);
+		                                        senderIms[key].read = 1;
+		                                        collection.update({_id:this.id}, {$set:{ im : senderIms}});
+		                                        //console.log('sen' + senderIms);
+		                                    }
+		                                }
+		                            }
+		                            
+		                            // update recipient thread
+		                            count = 0;
+		                            for(var key1 in recipientIms)
+		                            {
+		                                if(key1 == reply)
+		                                { 
+		                                    if (typeof recipientIms[key] != 'undefined')
+		                                    {
+		                                        recipientIms[key].messages.push(newMessage);
+		                                        recipientIms[key].read = 0;
+		                                        collection.update({_id:this.rId}, {$set:{ im : recipientIms}});
+		                                        //console.log('rec' + recipientIms);       
+		                                    }
+		                                    
+		                                }
+		                                count += 1;
+		                            }
+		                            process.nextTick(function(){
+		                                res.end();  
+		                            });
+									
 								}
-								senderIms = sender.im;
-								recipientIms = recipient.im;
-								
-							     // update sender thread
-	                            for(var key in senderIms)
-	                            {
-	                                if(key == reply)
-	                                {
-	                                    if (typeof senderIms[key] != 'undefined')
-	                                    {
-	                                        //console.log(senderIms);
-	                                        senderIms[key].messages.push(newMessage);
-	                                        senderIms[key].read = 1;
-	                                        collection.update({_id:this.id}, {$set:{ im : senderIms}});
-	                                        //console.log('sen' + senderIms);
-	                                    }
-	                                }
-	                            }
-	                            
-	                            // update recipient thread
-	                            count = 0;
-	                            for(var key1 in recipientIms)
-	                            {
-	                                if(key1 == reply)
-	                                { 
-	                                    if (typeof recipientIms[key] != 'undefined')
-	                                    {
-	                                        recipientIms[key].messages.push(newMessage);
-	                                        recipientIms[key].read = 0;
-	                                        collection.update({_id:this.rId}, {$set:{ im : recipientIms}});
-	                                        //console.log('rec' + recipientIms);       
-	                                    }
-	                                    
-	                                }
-	                                count += 1;
-	                            }
-	                            process.nextTick(function(){
-	                                res.end();  
-	                            });
-								
-							}
-							else {
-								
-								if(!sender.im)
-									sender.im = {};
-								if(!recipient.im)
-									recipient.im = {};
-								everyone = [sender._id, recipient._id];
-							 	threadId = String(new db.bson_serializer.ObjectID( null ));
-								theMessage = {
-									'recipients' : [String(sender._id), String(recipient._id)],
-									'id'		 : threadId,
-									'created' : ourTime,
-									'read' : 0,
-									'messages' : [
-										{
-											'sender' : String(sender._id),
-											'reciever' : String(recipient._id),
-											'userName' : sender.username,
-											'message' : message,
-											'sent' : ourTime,
-										}
-									]
-								};
-								process.nextTick(function(){
-									sender.im[threadId] = theMessage;
-									recipient.im[threadId] = theMessage;
-									//console.log(sender);
-									//console.log(recipient.im);
+								else {
+									
+									if(!sender.im)
+										sender.im = {};
+									if(!recipient.im)
+										recipient.im = {};
+									everyone = [sender._id, recipient._id];
+								 	threadId = String(new req.app.db.bson_serializer.ObjectID( null ));
+									theMessage = {
+										'recipients' : [String(sender._id), String(recipient._id)],
+										'id'		 : threadId,
+										'created' : ourTime,
+										'read' : 0,
+										'messages' : [
+											{
+												'sender' : String(sender._id),
+												'reciever' : String(recipient._id),
+												'userName' : sender.username,
+												'message' : message,
+												'sent' : ourTime,
+											}
+										]
+									};
 									process.nextTick(function(){
-										collection.update({_id:id}, {$set:{ im : sender.im}});
-										collection.update({_id:rId}, {$set:{ im : recipient.im}});
+										sender.im[threadId] = theMessage;
+										recipient.im[threadId] = theMessage;
 										//console.log(sender);
-										//console.log(recipient);
-										res.end();
+										//console.log(recipient.im);
+										process.nextTick(function(){
+											collection.update({_id:id}, {$set:{ im : sender.im}});
+											collection.update({_id:rId}, {$set:{ im : recipient.im}});
+											//console.log(sender);
+											//console.log(recipient);
+											res.end();
+										});
 									});
-								});
-							}
+								}
+							});
 						});
 					});
 				});
-			});
-		}
-		res.end();
+			}
+			res.end();
+		});
 	});
 };

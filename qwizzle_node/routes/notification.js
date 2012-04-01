@@ -1,35 +1,8 @@
-/*/*
- * @TODO Fix this error:
- * 
- * node.js:134
-        throw e; // process.nextTick error, or 'error' event on first tick
-        ^
-TypeError: Cannot call method 'authenticate' of null
-    at /var/node/qwizzle_node/routes/notification.js:6:5
-    at /var/node/qwizzle_node/node_modules/mongodb/lib/mongodb/db.js:155:16
-    at [object Object].<anonymous> (/var/node/qwizzle_node/node_modules/mongodb/    lib/mongodb/connection/server.js:184:42)
-    at [object Object].emit (events.js:67:17)
-    at [object Object].<anonymous> (/var/node/qwizzle_node/node_modules/mongodb/    lib/mongodb/connection/connection_pool.js:110:14)
-    at [object Object].emit (events.js:67:17)
-    at Socket.<anonymous> (/var/node/qwizzle_node/node_modules/mongodb/lib/mongo    db/connection/connection.js:313:12)
-    at Socket.emit (events.js:64:17)
-    at Array.<anonymous> (net.js:831:12)
-    at EventEmitter._tickCallback (node.js:126:26)
- * 
+/*
  * 
  * 
  */
-
-var mongodb = require('mongodb');
 var fs = fs = require('fs');
-var server = new mongodb.Server("127.0.0.1", 27017, {});
-var db = new mongodb.Db('qwizzle', server, {});
-db.open(function(err, db){
-	db.authenticate('chosen', 'Ch0s3nLollip0p!', function(err, result){
-		if (err) throw err;
-	});
-});
-
 var checkIms = function(callback) {
 	notify['im'] = 0;
 	imThreads = user.im;
@@ -201,8 +174,8 @@ var checkTestimonials = function(callback){
 	});
 }
 
-var userLookup = function(callback){
-	db.collection('mango_users', function(error, collection) {
+var userLookup = function(req, callback){
+	req.app.db.collection('mango_users', function(error, collection) {
 		if (error) throw error;
 		collection.find({_id : id}, {limit:1}).toArray(function(error, user) {
 			user = user[0];
@@ -228,7 +201,7 @@ var setSessionFile = function(req, callback){
 	});
 }
 
-var setId = function(callback){
+var setId = function(req, callback){
 	fs.readFile(sessFile, function (err, data){
 		txt = String(data);
 		match = txt.match(/\"_id\";C:7:\"MongoId\":24:\{(.*?)\}s\:/);
@@ -244,7 +217,7 @@ var setId = function(callback){
             {
                 try
                 {
-                    this.id = db.bson_serializer.ObjectID( theId ); 
+                    this.id = req.app.db.bson_serializer.ObjectID( theId ); 
                     process.nextTick(function(){
                         callback(true);
                     }); 
@@ -256,7 +229,6 @@ var setId = function(callback){
                 }
             }    
 		} else { callback(false); }
-		
 	});
 }
 
@@ -264,10 +236,10 @@ var setUser = function(req, callback){
 	setSessionFile(req, function(bool){
 		if (bool === true)
 		{
-			setId(function(bool){
+			setId(req, function(bool){
 				if (bool === true)
 				{
-					userLookup(function(bool){
+					userLookup(req, function(bool){
 						if (bool === true)
 						{
 							callback(true);
@@ -278,42 +250,32 @@ var setUser = function(req, callback){
 		} else { callback(false); }
 	});
 }
-
+ 
 exports.getall = function (req, res) {
 	this.notify = [];
 	setUser(req, function(bool){
-		if (bool === true)
-		{
+		if (bool === true) {
 			checkMessages(function(bool) {
-				if (bool)
-				{
-					checkIms(function(bool) {
-						checkTasks(function(bool) {
-							checkContacts(function(bool) {
-								checkTestimonials(function(bool){
-									checkAppointments(function(bool) {
-										data = {};
-										for(var key in notify)
-										{
-											data[key] = notify[key]; 
-										}
-										data['success'] = true;
-										process.nextTick(function(){
-											json = JSON.stringify(data);
-												res.end(json);
-										});
+				checkIms(function(bool) {
+					checkTasks(function(bool) {
+						checkContacts(function(bool) {
+							checkTestimonials(function(bool){
+								checkAppointments(function(bool) {
+									data = {};
+									for(var key in notify)
+									{
+										data[key] = notify[key]; 
+									}
+									data['success'] = true;
+									process.nextTick(function(){
+										json = JSON.stringify(data);
+											res.end(json);
 									});
 								});
 							});
 						});
-					});		
-				} 
-				else 
-				{ 
-					data = {};
-					data['sucess'] = false;
-					res.end(JSON.stringify(data)); 
-				}
+					});
+				}); 
 			});	
 		} 
 		else 

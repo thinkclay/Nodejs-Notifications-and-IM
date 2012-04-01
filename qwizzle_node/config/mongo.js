@@ -1,0 +1,1 @@
+var db = new mongodb.Db('qwizzle', server, {});
