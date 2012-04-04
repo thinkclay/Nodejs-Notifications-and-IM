@@ -24,8 +24,12 @@ var setDB = function(req, callback) {
 	}
 	process.nextTick(function(){
 		app.db.open(function(err, db){
-			app.db.authenticate('chosen', 'Ch0s3nLollip0p!', function(err, result){
-				if (err) throw err;
+			db.authenticate('chosen', 'Ch0s3nLollip0p!', function(err, result){
+				//console.log(err);
+				if (err)
+				{
+					callback(false);
+				}
 				process.nextTick(function(){
 					callback(true);
 				});

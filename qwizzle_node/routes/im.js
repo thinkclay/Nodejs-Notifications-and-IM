@@ -27,42 +27,57 @@ var isEmpty = function(map) {
    return empty;
 }
 
-var checkOnline = function(callback) {
+/*
+ * !BUG! - This needs to be written to work syncronously otherwise I'm attempting to read EVERY session file at once.
+ * 
+ * 
+ */
+var checkOnline = function(cb1) {
 	fs.readdir('/var/lib/php5/', function(error, files) {
 		if(error) throw error;
 		this.onlineIds = [];
 		online = [];
 		remaining = files.length;
 		sessions = [];
-		//console.log(files.length);
-		for(i=0; i < files.length; i++)
-		{
-			try
+		var fileRecursion = function(i, files, callback){
+			if (i == 0)
 			{
-				data = fs.readFileSync('/var/lib/php5/' + files[i]);
-				//fs.readFile('/var/lib/php5/' + files[i], function (err, data) {
-				var txt = String(data);
-				match = txt.match(/Model_Mango_User/);
-				if(match != null)
+				cb1(true);
+				return;
+			}
+			else
+			{
+				try
 				{
-					// build out online array to store user arrays
-	     			online.push(match);	
-	     			txt = String(data);
-	     			match = txt.match(/\"_id\";C:7:\"MongoId\":24:\{(.*?)\}s\:/);
-	     			onlineIds.push(match[1]);
-				}	
-			}
-			catch(err)
-			{
-				console.log(err);
-			}
-			
-			remaining -= 1;
-			//console.log(remaining);
-			if ( remaining == 0 ) {
-				callback(true);
-			}
+					data = fs.readFileSync('/var/lib/php5/' + files[i]);
+					
+					var txt = String(data);
+					match = txt.match(/Model_Mango_User/);
+					if(match != null)
+					{
+						// build out online array to store user arrays
+		     			online.push(match);	
+		     			txt = String(data);
+		     			match = txt.match(/\"_id\";C:7:\"MongoId\":24:\{(.*?)\}s\:/);
+		     			onlineIds.push(match[1]);
+					}	
+				}
+				catch(err)
+				{
+					//console.log(err);
+				}
+				process.nextTick(function(){
+					i = (i - 1);
+					fileRecursion(i, files, function(bool){});
+				});
+			} 
 		}
+		var i = files.length;
+		fileRecursion(i, files, function(bool){
+			//console.log('here');
+			//cb1(true);
+		});
+		
 	});	
 }
 
@@ -122,10 +137,16 @@ var userLookup = function(req, callback){
 	req.app.db.collection('mango_users', function(error, collection) {
 		if (error) throw error;
 		collection.find({_id : id}, {limit:1}).toArray(function(error, user) {
+			if (user == null)
+			{
+				callback(false);
+				return false;
+			}
 			user = user[0];
 			this.user = user;
 			this.data = [];
 			contacts = [];
+			//console.log(user);
 			process.nextTick(function(){
 				if (typeof user == 'undefined') 
 				{
@@ -138,7 +159,7 @@ var userLookup = function(req, callback){
 					y = contacts.length;
 					for(i=0; i < contacts.length; i++)
 					{
-						if (contacts[i] != 'defined')
+						if (typeof contacts[i] != 'undefined')
 						{
 							if (contacts[i].status == 'active')
 							{
@@ -146,7 +167,9 @@ var userLookup = function(req, callback){
 								for(x=0; x < onlineIds.length; x++)
 								{
 									if(contacts[i]._id == onlineIds[x])
-										contacts[i].status = 'online';
+									{
+										contacts[i].status = 'online';	
+									}
 								}
 								try
 								{
@@ -164,7 +187,9 @@ var userLookup = function(req, callback){
 							callback(true);
 						}	
 					}	
-				} else { callback(false); }
+				} else { 
+					callback(false); 
+				}
 			});
 			
 		}); 
@@ -225,7 +250,6 @@ var setUser = function(req, callback){
 }
 
 exports.index = function(req, res){
-	// get session cookie
 	req.app.setMongoDB(req, function(){
 		setUser(req, function(bool){
 			if(bool === true){
@@ -238,22 +262,39 @@ exports.index = function(req, res){
 										//console.log(user.email + ' just made a request\r\n');
 										title = 'Qwizzle IM System v1.0 (alpha)';
 										var d = {};
+										//console.log(data);
 										d.contacts = data;
 										d.user_id = id;
 										d.success = true;
 										json = JSON.stringify(d);
-										res.end(json);
+										process.nextTick(function(){
+					                    	req.app.db.close();
+					                        res.end(json);  
+					                    });
 									});	
 								} else {
 									//console.log(user.email + ' just made a request');
 									json = JSON.stringify({'user_id' : id, 'success' : false})
-									res.end(json);				
+									process.nextTick(function(){
+				                    	req.app.db.close();
+				                        res.end(json);  
+				                    });				
 								}
 							});	
-						} else { res.end('Access Denied'); }
+						} else { 
+							process.nextTick(function(){
+		                    	req.app.db.close();
+		                        res.end('Access denied');  
+		                    }); 
+						}
 					});
 				});	
-			} else { res.end('Access Denied'); }
+			} else { 
+				process.nextTick(function(){
+                	req.app.db.close();
+                    res.end('Access denied');  
+                });
+			}
 		});	
 	});
 };
@@ -282,24 +323,47 @@ exports.read = function(req, res){
 			                                            process.nextTick(function(){
 			                                                req.app.db.collection('mango_users', function(error, collection){
 			                                                    collection.update({_id:id}, {$set:{ im : user.im}});
-			                                                    res.end();    
+			                                                    process.nextTick(function(){
+											                    	req.app.db.close();
+											                        res.end('Access denied');  
+											                    });    
 			                                                });
 			                                            });    
 			                                        });  
 			                                    });    
 			                                }
-			                            } else { res.end('Access denied'); }   
+			                            } else { 
+			                            	process.nextTick(function(){
+						                    	req.app.db.close();
+						                        res.end('Access denied');  
+						                    });
+			                            }   
 			                        });
-			                    } else { res.end('Access denied'); }
+			                    } else { 
+			                    	process.nextTick(function(){
+				                    	req.app.db.close();
+				                        res.end('Access denied');  
+				                    });
+			                    }
 			                });
 			            });
-			        } else { res.end('Access denied'); }
+			        } else { 
+			        	
+			        	process.nextTick(function(){
+	                    	req.app.db.close();
+	                        res.end('Access denied');  
+	                    });
+			        }
 			    });
 			});
-		} else { res.end(); }
+		} else { 
+			process.nextTick(function(){
+	        	req.app.db.close();
+	            res.end();  
+	        }); 
+		}
 	});
 }
-
 
 exports.send = function(req, res){
 	req.app.setMongoDB(req, function(){
@@ -313,6 +377,16 @@ exports.send = function(req, res){
 				process.nextTick(function(){
 					req.app.db.collection('mango_users', function(error, collection){
 						collection.find({_id:this.id}, {limit:1}).toArray(function (error, sender){
+							console.log(error);
+							//console.log(sender);
+							if (sender == null)
+							{
+								process.nextTick(function(){
+									console.log('here 1');
+									req.app.db.close();
+									res.end();	
+								});
+							}
 							sender = sender[0];
 							collection.find({_id:this.rId}, {limit:1}).toArray(function (error, recipient){
 								recipient = recipient[0];
@@ -362,6 +436,8 @@ exports.send = function(req, res){
 		                                count += 1;
 		                            }
 		                            process.nextTick(function(){
+		                            	console.log('here 2');
+		                            	req.app.db.close();
 		                                res.end();  
 		                            });
 									
@@ -392,14 +468,14 @@ exports.send = function(req, res){
 									process.nextTick(function(){
 										sender.im[threadId] = theMessage;
 										recipient.im[threadId] = theMessage;
-										//console.log(sender);
-										//console.log(recipient.im);
 										process.nextTick(function(){
 											collection.update({_id:id}, {$set:{ im : sender.im}});
 											collection.update({_id:rId}, {$set:{ im : recipient.im}});
-											//console.log(sender);
-											//console.log(recipient);
-											res.end();
+											process.nextTick(function(){
+												console.log('here 3');
+												req.app.db.close();
+												res.end();	
+											});
 										});
 									});
 								}
@@ -408,7 +484,13 @@ exports.send = function(req, res){
 					});
 				});
 			}
-			res.end();
+			else {
+				process.nextTick(function(){
+					console.log('here 4');
+					req.app.db.close();
+					res.end();	
+				});	
+			}
 		});
 	});
 };
