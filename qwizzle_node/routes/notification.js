@@ -176,11 +176,21 @@ var checkTestimonials = function(callback){
 
 var userLookup = function(req, callback){
 	req.app.db.collection('mango_users', function(error, collection) {
-		if (error) throw error;
+		if (error) 
+		{
+			callback(false);
+		}
 		collection.find({_id : id}, {limit:1}).toArray(function(error, user) {
-			user = user[0];
-			this.user = user;
-			callback(true);
+			if (user == null)
+			{
+				callback(false);	
+			}
+			else
+			{
+				user = user[0];
+				this.user = user;
+				callback(true);	
+			}
 		}); 
 	});
 }

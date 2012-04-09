@@ -139,59 +139,63 @@ var userLookup = function(req, callback){
 		collection.find({_id : id}, {limit:1}).toArray(function(error, user) {
 			if (user == null)
 			{
+				//console.log(user);
 				callback(false);
 				return false;
 			}
-			user = user[0];
-			this.user = user;
-			this.data = [];
-			contacts = [];
-			//console.log(user);
-			process.nextTick(function(){
-				if (typeof user == 'undefined') 
-				{
-					callback(false);	
-					return false;
-				}
-				if(user.contacts)
-				{ 
-					contacts = user.contacts;
-					y = contacts.length;
-					for(i=0; i < contacts.length; i++)
+			else
+			{
+				user = user[0];
+				//console.log(user);
+				this.user = user;
+				this.data = [];
+				contacts = [];
+				//console.log(user);
+				process.nextTick(function(){
+					if (typeof user == 'undefined') 
 					{
-						if (typeof contacts[i] != 'undefined')
+						callback(false);	
+						return false;
+					}
+					if(user.contacts)
+					{ 
+						contacts = user.contacts;
+						y = contacts.length;
+						for(i=0; i < contacts.length; i++)
 						{
-							if (contacts[i].status == 'active')
+							if (typeof contacts[i] != 'undefined')
 							{
-								contacts[i].status = 'offline';
-								for(x=0; x < onlineIds.length; x++)
+								if (contacts[i].status == 'active')
 								{
-									if(contacts[i]._id == onlineIds[x])
+									contacts[i].status = 'offline';
+									for(x=0; x < onlineIds.length; x++)
 									{
-										contacts[i].status = 'online';	
+										if(contacts[i]._id == onlineIds[x])
+										{
+											contacts[i].status = 'online';	
+										}
+									}
+									try
+									{
+										data.push(contacts[i]);	
+									}
+									catch(e)
+									{ 
+										callback(false);
 									}
 								}
-								try
-								{
-									data.push(contacts[i]);	
-								}
-								catch(e)
-								{ 
-									callback(false);
-								}
 							}
-						}
-						y -= 1;
-						if(y == 0)
-						{
-							callback(true);
+							y -= 1;
+							if(y == 0)
+							{
+								callback(true);
+							}	
 						}	
-					}	
-				} else { 
-					callback(false); 
-				}
-			});
-			
+					} else { 
+						callback(true); 
+					}
+				});
+			}
 		}); 
 	});
 }
@@ -268,7 +272,10 @@ exports.index = function(req, res){
 										d.success = true;
 										json = JSON.stringify(d);
 										process.nextTick(function(){
-					                    	req.app.db.close();
+											if (typeof req.app.db != 'undefined')
+											{
+												req.app.db.close();
+											}
 					                        res.end(json);  
 					                    });
 									});	
@@ -276,14 +283,20 @@ exports.index = function(req, res){
 									//console.log(user.email + ' just made a request');
 									json = JSON.stringify({'user_id' : id, 'success' : false})
 									process.nextTick(function(){
-				                    	req.app.db.close();
+										if (typeof req.app.db != 'undefined')
+										{
+				                    		req.app.db.close();
+				                    	}
 				                        res.end(json);  
 				                    });				
 								}
 							});	
 						} else { 
 							process.nextTick(function(){
-		                    	req.app.db.close();
+								if (typeof req.app.db != 'undefined')
+								{	
+		                    		req.app.db.close();
+		                    	}
 		                        res.end('Access denied');  
 		                    }); 
 						}
@@ -291,7 +304,10 @@ exports.index = function(req, res){
 				});	
 			} else { 
 				process.nextTick(function(){
-                	req.app.db.close();
+					if (typeof req.app.db != 'undefined')
+					{
+                		req.app.db.close();
+                	}
                     res.end('Access denied');  
                 });
 			}
@@ -324,7 +340,10 @@ exports.read = function(req, res){
 			                                                req.app.db.collection('mango_users', function(error, collection){
 			                                                    collection.update({_id:id}, {$set:{ im : user.im}});
 			                                                    process.nextTick(function(){
-											                    	req.app.db.close();
+											                    	if (typeof req.app.db != 'undefined')
+																	{
+											                    		req.app.db.close();
+											                    	}
 											                        res.end('Access denied');  
 											                    });    
 			                                                });
@@ -334,14 +353,20 @@ exports.read = function(req, res){
 			                                }
 			                            } else { 
 			                            	process.nextTick(function(){
-						                    	req.app.db.close();
+			                            		if (typeof req.app.db != 'undefined')
+												{
+						                    		req.app.db.close();
+						                        } 
 						                        res.end('Access denied');  
 						                    });
 			                            }   
 			                        });
 			                    } else { 
 			                    	process.nextTick(function(){
-				                    	req.app.db.close();
+			                    		if (typeof req.app.db != 'undefined')
+										{
+				                    		req.app.db.close();
+				                    	}
 				                        res.end('Access denied');  
 				                    });
 			                    }
@@ -350,7 +375,10 @@ exports.read = function(req, res){
 			        } else { 
 			        	
 			        	process.nextTick(function(){
-	                    	req.app.db.close();
+			        		if (typeof req.app.db != 'undefined')
+							{
+	                    		req.app.db.close();
+	                   		}	
 	                        res.end('Access denied');  
 	                    });
 			        }
@@ -358,7 +386,10 @@ exports.read = function(req, res){
 			});
 		} else { 
 			process.nextTick(function(){
-	        	req.app.db.close();
+				if (typeof req.app.db != 'undefined')
+				{
+	        		req.app.db.close();
+	       		}	
 	            res.end();  
 	        }); 
 		}
@@ -377,13 +408,13 @@ exports.send = function(req, res){
 				process.nextTick(function(){
 					req.app.db.collection('mango_users', function(error, collection){
 						collection.find({_id:this.id}, {limit:1}).toArray(function (error, sender){
-							console.log(error);
-							//console.log(sender);
 							if (sender == null)
 							{
 								process.nextTick(function(){
-									console.log('here 1');
-									req.app.db.close();
+									if (typeof req.app.db != 'undefined')
+									{
+										req.app.db.close();
+									}
 									res.end();	
 								});
 							}
@@ -437,7 +468,10 @@ exports.send = function(req, res){
 		                            }
 		                            process.nextTick(function(){
 		                            	console.log('here 2');
-		                            	req.app.db.close();
+		                            	if (typeof req.app.db != 'undefined')
+										{
+		                            		req.app.db.close();
+		                                }
 		                                res.end();  
 		                            });
 									
@@ -472,8 +506,10 @@ exports.send = function(req, res){
 											collection.update({_id:id}, {$set:{ im : sender.im}});
 											collection.update({_id:rId}, {$set:{ im : recipient.im}});
 											process.nextTick(function(){
-												console.log('here 3');
-												req.app.db.close();
+												if (typeof req.app.db != 'undefined')
+												{
+													req.app.db.close();
+												}
 												res.end();	
 											});
 										});
@@ -486,8 +522,11 @@ exports.send = function(req, res){
 			}
 			else {
 				process.nextTick(function(){
-					console.log('here 4');
-					req.app.db.close();
+					
+					if (typeof req.app.db != 'undefined')
+					{
+						req.app.db.close();
+					}
 					res.end();	
 				});	
 			}
