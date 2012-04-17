@@ -419,9 +419,10 @@ exports.send = function(req, res){
 								});
 							}
 							sender = sender[0];
+							//console.log(sender);
 							collection.find({_id:this.rId}, {limit:1}).toArray(function (error, recipient){
 								recipient = recipient[0];
-								if(reply != 'false') 
+								if(this.reply != 'false') 
 								{
 									newMessage = {
 										'sender' 	: String(sender._id),
@@ -436,7 +437,7 @@ exports.send = function(req, res){
 								     // update sender thread
 		                            for(var key in senderIms)
 		                            {
-		                                if(key == reply)
+		                                if(key == this.reply)
 		                                {
 		                                    if (typeof senderIms[key] != 'undefined')
 		                                    {
@@ -453,7 +454,7 @@ exports.send = function(req, res){
 		                            count = 0;
 		                            for(var key1 in recipientIms)
 		                            {
-		                                if(key1 == reply)
+		                                if(key1 == this.reply)
 		                                { 
 		                                    if (typeof recipientIms[key] != 'undefined')
 		                                    {
@@ -476,12 +477,16 @@ exports.send = function(req, res){
 		                            });
 									
 								}
-								else {
-									
+								else 
+								{
 									if(!sender.im)
+									{
 										sender.im = {};
+									}
 									if(!recipient.im)
+									{
 										recipient.im = {};
+									}
 									everyone = [sender._id, recipient._id];
 								 	threadId = String(new req.app.db.bson_serializer.ObjectID( null ));
 									theMessage = {

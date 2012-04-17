@@ -195,6 +195,73 @@ var userLookup = function(req, callback){
 	});
 }
 
+var userLookup = function(req, callback){
+	req.app.db.collection('mango_users', function(error, collection) {
+		if (error) throw error;
+		collection.find({_id : id}, {limit:1}).toArray(function(error, user) {
+			if (user == null)
+			{
+				//console.log(user);
+				callback(false);
+				return false;
+			}
+			else
+			{
+				user = user[0];
+				//console.log(user);
+				this.user = user;
+				this.data = [];
+				contacts = [];
+				//console.log(user);
+				process.nextTick(function(){
+					if (typeof user == 'undefined') 
+					{
+						callback(false);	
+						return false;
+					}
+					if(user.contacts)
+					{ 
+						contacts = user.contacts;
+						y = contacts.length;
+						for(i=0; i < contacts.length; i++)
+						{
+							if (typeof contacts[i] != 'undefined')
+							{
+								if (contacts[i].status == 'active')
+								{
+									contacts[i].status = 'offline';
+									for(x=0; x < onlineIds.length; x++)
+									{
+										if(contacts[i]._id == onlineIds[x])
+										{
+											contacts[i].status = 'online';	
+										}
+									}
+									try
+									{
+										data.push(contacts[i]);	
+									}
+									catch(e)
+									{ 
+										callback(false);
+									}
+								}
+							}
+							y -= 1;
+							if(y == 0)
+							{
+								callback(true);
+							}	
+						}	
+					} else { 
+						callback(true); 
+					}
+				});
+			}
+		}); 
+	});
+}
+
 var setSessionFile = function(req, callback){
 	fs.stat('/var/lib/php5/sess_' + req.cookies.session, function(error, stats){
 		if(error) // didn't find the session file
@@ -207,7 +274,7 @@ var setSessionFile = function(req, callback){
 			process.nextTick(function(){
 				callback(true);
 			}); 	
-		}	
+		}
 	});
 }
 
@@ -215,9 +282,9 @@ var setId = function(req, callback){
 	fs.readFile(sessFile, function (err, data){
 		txt = String(data);
 		match = txt.match(/\"_id\";C:7:\"MongoId\":24:\{(.*?)\}s\:/);
-		if(match)
+		if (match)
 		{
-    		theId = match[1]; 
+		  theId = match[1]; 
             theId = theId.replace(/\W/g, "");
             if(match == null)
             {
@@ -225,20 +292,12 @@ var setId = function(req, callback){
             }
             else
             {
-                try
-                {
-                    this.id = req.app.db.bson_serializer.ObjectID( theId ); 
-                    process.nextTick(function(){
-                        callback(true);
-                    }); 
-                }
-                catch(err)
-                {
-                    
-                    callback(false);
-                }
+                this.id = req.app.db.bson_serializer.ObjectID( theId );
+                process.nextTick(function(){
+                    callback(true);
+                }); 
             }    
-		} else { callback(false); }
+		}
 	});
 }
 
@@ -249,18 +308,13 @@ var setUser = function(req, callback){
 			setId(req, function(bool){
 				if (bool === true)
 				{
-					userLookup(req, function(bool){
-						if (bool === true)
-						{
-							callback(true);
-						} else { callback(false); }
-					});
-				} else { callback(false); }
+					callback(true);
+				}
 			});
 		} else { callback(false); }
 	});
 }
- 
+
 exports.getall = function (req, res) {
 	this.notify = [];
 	setUser(req, function(bool){
@@ -287,11 +341,11 @@ exports.getall = function (req, res) {
 					});
 				}); 
 			});	
-		} 
+		}
 		else 
-		{ 
+		{
 			json = {};
-			json['sucess'] = false;
+			json['success'] = false;
 			json = JSON.stringify(json);
 			res.end(json); 
 		}
